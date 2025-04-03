@@ -69,5 +69,7 @@ float4 main(LightingPixelShaderInput input) : SV_Target
     float3 finalColour = (gAmbientColour + diffuseLight1 + diffuseLight2) * diffuseMaterialColour + 
                          (specularLight1 + specularLight2) * specularMaterialColour * tint;
 
+    finalColour = saturate(finalColour * 2.0f);
+
     return float4(finalColour, 1.0f); // Always use 1.0f for output alpha - no alpha blending in this lab
 }

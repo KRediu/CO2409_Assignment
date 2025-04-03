@@ -25,6 +25,8 @@ ID3D11SamplerState* gAnisotropic4xSampler = nullptr;
 // Blend states allow us to switch between blending modes (none, additive, multiplicative etc.)
 ID3D11BlendState* gNoBlendingState       = nullptr;
 ID3D11BlendState* gAdditiveBlendingState = nullptr;
+ID3D11BlendState* gMultiplicativeBlendingState = nullptr;
+ID3D11BlendState* gAlphaBlendingState = nullptr;
 
 // Rasterizer states affect how triangles are drawn
 ID3D11RasterizerState* gCullBackState  = nullptr;
@@ -201,6 +203,47 @@ bool CreateStates()
         gLastError = "Error creating additive blending state";
         return false;
     }
+
+
+    ////-------- Multiplicative Blending State --------////
+    blendDesc.RenderTarget[0].BlendEnable = TRUE;             // Enable blending
+    blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_DEST_COLOR;    // How to blend the source (texture colour)
+    blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ZERO;    // How to blend the destination (colour already on screen)
+    blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD; // How to combine the above two, almost always ADD
+
+    //** Leave the following settings alone, they are used only in highly unusual cases
+    //** Despite the word "Alpha" in the variable names, these are not the settings used for alpha blending
+    blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+    blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+    blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+    blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+    // Then create a DirectX object for the description that can be used by a shader
+    if (FAILED(gD3DDevice->CreateBlendState(&blendDesc, &gMultiplicativeBlendingState)))
+    {
+        gLastError = "Error creating multiplicative blending state";
+        return false;
+    }
+
+    ////-------- Alpha Blending State --------//// Modified from standard alpha blending
+    blendDesc.RenderTarget[0].BlendEnable = TRUE;             // Enable blending
+    blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;    // How to blend the source (texture colour)
+    blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;    // How to blend the destination (colour already on screen)
+    blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD; // How to combine the above two, almost always ADD
+
+    //** Leave the following settings alone, they are used only in highly unusual cases
+    //** Despite the word "Alpha" in the variable names, these are not the settings used for alpha blending
+    blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_SRC_ALPHA;
+    blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+    blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+    blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+    // Then create a DirectX object for the description that can be used by a shader
+    if (FAILED(gD3DDevice->CreateBlendState(&blendDesc, &gAlphaBlendingState)))
+    {
+        gLastError = "Error creating multiplicative blending state";
+        return false;
+    }
     	
 	
 	//--------------------------------------------------------------------------------------
@@ -268,6 +311,8 @@ void ReleaseStates()
     if (gCullNoneState)          gCullNoneState->Release();
     if (gNoBlendingState)        gNoBlendingState->Release();
     if (gAdditiveBlendingState)  gAdditiveBlendingState->Release();
+    if (gMultiplicativeBlendingState)  gMultiplicativeBlendingState->Release();
+    if (gAlphaBlendingState)     gAlphaBlendingState->Release();
     if (gAnisotropic4xSampler)   gAnisotropic4xSampler->Release();
     if (gTrilinearSampler)       gTrilinearSampler->Release();
     if (gPointSampler)           gPointSampler->Release();

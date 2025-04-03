@@ -53,15 +53,22 @@ float4 main(LightingPixelShaderInput input) : SV_Target
     float3 specularLight2 = gLight2Strength * diffuseLight2 * pow(max(dot(input.worldNormal, halfway), 0), gSpecularPower);
 
 
-
     // Sample diffuse material and specular material colour for this pixel from a texture using a given sampler that you set up in the C++ code
-    float4 textureColour = DiffuseSpecularMap.Sample(TexSampler, input.uv);
-    float3 diffuseMaterialColour = textureColour.rgb; // Diffuse material colour in texture RGB (base colour of model)
-    float specularMaterialColour = textureColour.a;   // Specular material colour in texture A (shininess of the surface)
+    float4 stoneColour = StoneDiffuseSpecularMap.Sample(TexSampler, input.uv);
+    float3 diffuseStoneColour = stoneColour.rgb; // Diffuse material colour in texture RGB (base colour of model)
+    float specularStoneColour = stoneColour.a;   // Specular material colour in texture A (shininess of the surface)
+
+    float4 WoodColour = WoodDiffuseSpecularMap.Sample(TexSampler, input.uv);
+    float3 diffuseWoodColour = WoodColour.rgb; // Diffuse material colour in texture RGB (base colour of model)
+    float specularWoodColour = WoodColour.a;   // Specular material colour in texture A (shininess of the surface)
+
+    float t = 0.5f + 0.5f * sin(wiggle);
+    float3 diffuseColour = lerp(diffuseStoneColour, diffuseWoodColour, t);
+    float specularColour = lerp(specularStoneColour, specularWoodColour, t);    
 
     // Combine lighting with texture colours
-    float3 finalColour = (gAmbientColour + diffuseLight1 + diffuseLight2) * diffuseMaterialColour + 
-                         (specularLight1 + specularLight2) * specularMaterialColour;
+    float3 finalColour = (gAmbientColour + diffuseLight1 + diffuseLight2) * diffuseColour + 
+                         (specularLight1 + specularLight2) * specularColour;
 
     return float4(finalColour, 1.0f); // Always use 1.0f for output alpha - no alpha blending in this lab
 }

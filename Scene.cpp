@@ -446,26 +446,31 @@ void RenderSceneFromCamera(Camera* camera)
 
     //// Render other lit models next ////
     // No change to shaders and states - only change textures for each one (texture sampler also stays the same)
+
+    // Container render
     gD3DContext->PSSetShaderResources(0, 1, &gCrateDiffuseSpecularMapSRV);
     gCrate->Render();
 
+    // Portal render
     gD3DContext->PSSetShaderResources(0, 1, &gPortalTextureSRV);
     gPortal->Render();
 
+    // Sphere render
     gD3DContext->VSSetShader(gSphereModelVertexShader, nullptr, 0);
     gD3DContext->PSSetShader(gSphereModelPixelShader, nullptr, 0);
     gD3DContext->PSSetShaderResources(0, 1, &gSphereDiffuseSpecularMapSRV);
     gSphere->Render();
     
+    // Cube render
     gD3DContext->VSSetShader(gCubeModelVertexShader, nullptr, 0);
     gD3DContext->PSSetShader(gCubeModelPixelShader, nullptr, 0);
-    gD3DContext->PSSetShaderResources(0, 1, &gCubeStoneDiffuseSpecularMapSRV); 
+    gD3DContext->PSSetShaderResources(0, 1, &gCubeStoneDiffuseSpecularMapSRV); // Send two textures to the buffers for linear interpolation
+    gD3DContext->PSSetShaderResources(1, 1, &gCubeWoodDiffuseSpecularMapSRV);
     gCube->Render();
 
     //// Render lights ////
     // Rendered with different shaders, textures, states from other models
 
-    // Select which shaders to use next
     gD3DContext->VSSetShader(gLightModelVertexShader, nullptr, 0);
     gD3DContext->PSSetShader(gLightModelPixelShader,  nullptr, 0);
 
@@ -609,7 +614,7 @@ void UpdateScene(float frameTime)
     //wiggle = 6 * frameTime;
     effectTime += frameTime; // separate frame time variable for effects - does not reset
 
-    wiggle = 6 * effectTime;
+    wiggle = 2 * effectTime;
 
     // Rotating light color values - assigned different values so some colors rotate quicker, because why not
     float r = 0.5f + 0.5f * sinf(effectTime * 0.7f);
