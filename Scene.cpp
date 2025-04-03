@@ -37,6 +37,7 @@ const float MOVEMENT_SPEED = 50.0f; // 50 units per second for movement (what a 
 
 
 // Meshes, models and cameras, same meaning as TL-Engine. Meshes prepared in InitGeometry function, Models & camera in InitScene
+Mesh* gTeapotMesh;
 Mesh* gCubeMesh;
 Mesh* gCrateMesh;
 Mesh* gSphereMesh;
@@ -44,6 +45,7 @@ Mesh* gGroundMesh;
 Mesh* gLightMesh;
 Mesh* gPortalMesh;
 
+Model* gTeapot;
 Model* gCube;
 Model* gCrate;
 Model* gSphere;
@@ -128,9 +130,12 @@ ID3D11Buffer*     gPerModelConstantBuffer; // --"--
 //--------------------------------------------------------------------------------------
 
 // DirectX objects controlling textures used in this lab
+ID3D11Resource*           gTeapotDiffuseSpecularMap = nullptr;
+ID3D11ShaderResourceView* gTeapotDiffuseSpecularMapSRV = nullptr;
+
 ID3D11Resource*           gCubeStoneDiffuseSpecularMap    = nullptr; // This object represents the memory used by the texture on the GPU
 ID3D11ShaderResourceView* gCubeStoneDiffuseSpecularMapSRV = nullptr; // This object is used to give shaders access to the texture above (SRV = shader resource view)
-ID3D11Resource*           gCubeWoodDiffuseSpecularMap = nullptr; // This object represents the memory used by the texture on the GPU
+ID3D11Resource*           gCubeWoodDiffuseSpecularMap = nullptr; 
 ID3D11ShaderResourceView* gCubeWoodDiffuseSpecularMapSRV = nullptr;
 
 ID3D11Resource*           gCrateDiffuseSpecularMap    = nullptr;
@@ -158,6 +163,7 @@ bool InitGeometry()
     // IMPORTANT NOTE: Will only keep the first object from the mesh - multipart objects will have parts missing - see later lab for more robust loader
     try 
     {
+        gTeapotMesh = new Mesh("Teapot.x");
         gCubeMesh   = new Mesh("Cube.x");
         gCrateMesh  = new Mesh("CargoContainer.x");
         gSphereMesh = new Mesh("Sphere.x");
@@ -198,8 +204,9 @@ bool InitGeometry()
     // The LoadTexture function requires you to pass a ID3D11Resource* (e.g. &gCubeDiffuseMap), which manages the GPU memory for the
     // texture and also a ID3D11ShaderResourceView* (e.g. &gCubeDiffuseMapSRV), which allows us to use the texture in shaders
     // The function will fill in these pointers with usable data. The variables used here are globals found near the top of the file.
-    if (!LoadTexture("StoneDiffuseSpecular.dds", &gCubeStoneDiffuseSpecularMap,   &gCubeStoneDiffuseSpecularMapSRV  ) ||
-        !LoadTexture("WoodDiffuseSpecular.dds", &gCubeWoodDiffuseSpecularMap,    &gCubeWoodDiffuseSpecularMapSRV) ||
+    if (!LoadTexture("MetalDiffuseSpecular.dds", &gTeapotDiffuseSpecularMap, &gTeapotDiffuseSpecularMapSRV) ||
+        !LoadTexture("StoneDiffuseSpecular.dds", &gCubeStoneDiffuseSpecularMap,   &gCubeStoneDiffuseSpecularMapSRV  ) ||
+        !LoadTexture("WoodDiffuseSpecular.dds",  &gCubeWoodDiffuseSpecularMap,    &gCubeWoodDiffuseSpecularMapSRV) ||
         !LoadTexture("CargoA.dds",               &gCrateDiffuseSpecularMap,  &gCrateDiffuseSpecularMapSRV) ||
         !LoadTexture("Brick1.jpg",               &gSphereDiffuseSpecularMap, &gSphereDiffuseSpecularMapSRV) ||
         !LoadTexture("GrassDiffuseSpecular.dds", &gGroundDiffuseSpecularMap, &gGroundDiffuseSpecularMapSRV ) ||
@@ -311,6 +318,7 @@ bool InitScene()
 {
     //// Set up scene ////
 
+    gTeapot = new Model(gTeapotMesh);
     gCube   = new Model(gCubeMesh);
     gCrate  = new Model(gCrateMesh);
     gSphere = new Model(gSphereMesh);
@@ -320,6 +328,7 @@ bool InitScene()
     gPortal = new Model(gPortalMesh);
 
 	// Initial positions
+    gTeapot->SetPosition({ 10,  0, 40 });
 	gCube->  SetPosition({  0, 15,  0 });
 	gSphere->SetPosition({ 30, 10,  0 });
 	gCrate-> SetPosition({-10,  0, 90 });
@@ -371,6 +380,8 @@ void ReleaseResources()
     if (gSphereDiffuseSpecularMap)     gSphereDiffuseSpecularMap->Release();
     if (gCrateDiffuseSpecularMapSRV)   gCrateDiffuseSpecularMapSRV->Release();
     if (gCrateDiffuseSpecularMap)      gCrateDiffuseSpecularMap->Release();
+    if (gTeapotDiffuseSpecularMapSRV)   gTeapotDiffuseSpecularMapSRV->Release();
+    if (gTeapotDiffuseSpecularMap)      gTeapotDiffuseSpecularMap->Release();
     if (gCubeStoneDiffuseSpecularMapSRV)    gCubeStoneDiffuseSpecularMapSRV->Release();
     if (gCubeStoneDiffuseSpecularMap)       gCubeStoneDiffuseSpecularMap->Release();
     if (gCubeWoodDiffuseSpecularMapSRV)    gCubeWoodDiffuseSpecularMapSRV->Release();
@@ -392,6 +403,7 @@ void ReleaseResources()
     delete gSphere;  gSphere = nullptr;
     delete gCrate;   gCrate  = nullptr;
     delete gCube;    gCube   = nullptr;
+    delete gTeapot;  gTeapot = nullptr;
 
     delete gPortalMesh;  gPortalMesh = nullptr;
     delete gLightMesh;   gLightMesh  = nullptr;
@@ -399,6 +411,7 @@ void ReleaseResources()
     delete gSphereMesh;  gSphereMesh = nullptr;
     delete gCrateMesh;   gCrateMesh  = nullptr;
     delete gCubeMesh;    gCubeMesh   = nullptr;
+    delete gTeapotMesh;  gTeapotMesh = nullptr;
 }
 
 
@@ -450,6 +463,9 @@ void RenderSceneFromCamera(Camera* camera)
     // Container render
     gD3DContext->PSSetShaderResources(0, 1, &gCrateDiffuseSpecularMapSRV);
     gCrate->Render();
+
+    gD3DContext->PSSetShaderResources(0, 1, &gTeapotDiffuseSpecularMapSRV);
+    gTeapot->Render();
 
     // Portal render
     gD3DContext->PSSetShaderResources(0, 1, &gPortalTextureSRV);
