@@ -1,40 +1,41 @@
 //--------------------------------------------------------------------------------------
 // Per-Pixel Lighting Pixel Shader
 //--------------------------------------------------------------------------------------
-// Pixel shader receives position and normal from the vertex shader and uses them to calculate
-// lighting per pixel. Also samples a samples a diffuse + specular texture map and combines with light colour.
 
-#include "Common.hlsli" // Shaders can also use include files - note the extension
+#include "Common.hlsli"
 
 
 //--------------------------------------------------------------------------------------
 // Textures (texture maps)
 //--------------------------------------------------------------------------------------
 
-// Here we allow the shader access to a texture that has been loaded from the C++ side and stored in GPU memory.
-// Note that textures are often called maps (because texture mapping describes wrapping a texture round a mesh).
-// Get used to people using the word "texture" and "map" interchangably.
-Texture2D    DiffuseSpecularMap : register(t0); // Textures here can contain a diffuse map (main colour) in their rgb channels and a specular
-                                                // map (shininess level) in their alpha channel. Repurposing the alpha channel means we can't use alpha blending
-                                                // The t0 indicates this texture is in slot 0 and the C++ code must load the texture into the this slot
-SamplerState TexSampler : register(s0); // A sampler is a filter for a texture like bilinear, trilinear or anisotropic
+// Texture access from buffer
+Texture2D    DiffuseSpecularMap : register(t0); 
+
+// Texture sampler
+SamplerState TexSampler : register(s0);
 
 
 //--------------------------------------------------------------------------------------
 // Shader code
 //--------------------------------------------------------------------------------------
 
-// Pixel shader entry point - each shader has a "main" function
-// This shader just samples a diffuse texture map
+// Pixel shader main function
 float4 main(LightingPixelShaderInput input) : SV_Target
 {
-    float sinY = sin(input.uv.y * radians(360.0f) + wiggle);
+    // Texture scrolling
+    input.uv.x += 0.1f * textureShiftFactor;  // Moves horizontally
+    input.uv.y += 0.1f * textureShiftFactor;  // Moves vertically
+
+    // Texture wiggling
+    float sinY = sin(input.uv.y * radians(360.0f) + textureShiftFactor);
     input.uv.x += 0.1f * sinY;
-    float sinX = sin(input.uv.x * radians(360.0f) + wiggle);
+    float sinX = sin(input.uv.x * radians(360.0f) + textureShiftFactor);
     input.uv.y += 0.1f * sinX;
 
     // Tint
     float3 tint = float3(1.0f, 0.0f, 0.0f);
+
     // Lighting equations
     input.worldNormal = normalize(input.worldNormal); // Normal might have been scaled by model scaling or interpolation so renormalise
     float3 cameraDirection = normalize(gCameraPosition - input.worldPosition);
@@ -60,7 +61,7 @@ float4 main(LightingPixelShaderInput input) : SV_Target
     float3 specularLight2 = gLight2Strength * diffuseLight2 * pow(max(dot(input.worldNormal, halfway), 0), gSpecularPower) * tint;
 
 
-    // Sample diffuse material and specular material colour for this pixel from a texture using a given sampler that you set up in the C++ code
+    // Sample diffuse material and specular material colour for this pixel
     float4 textureColour = DiffuseSpecularMap.Sample(TexSampler, input.uv);
     float3 diffuseMaterialColour = textureColour.rgb; // Diffuse material colour in texture RGB (base colour of model)
     float specularMaterialColour = textureColour.a;   // Specular material colour in texture A (shininess of the surface)
@@ -71,5 +72,5 @@ float4 main(LightingPixelShaderInput input) : SV_Target
 
     finalColour = saturate(finalColour * 2.0f);
 
-    return float4(finalColour, 1.0f); // Always use 1.0f for output alpha - no alpha blending in this lab
+    return float4(finalColour, 1.0f);
 }

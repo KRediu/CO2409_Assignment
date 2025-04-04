@@ -1,59 +1,61 @@
 //--------------------------------------------------------------------------------------
 // Per-Pixel Lighting Pixel Shader
 //--------------------------------------------------------------------------------------
-// Pixel shader receives position and normal from the vertex shader and uses them to calculate
-// lighting per pixel. Also samples a samples a diffuse + specular texture map and combines with light colour.
 
-#include "Common.hlsli" // Shaders can also use include files - note the extension
+#include "Common.hlsli" 
 
 
 //--------------------------------------------------------------------------------------
 // Textures (texture maps)
 //--------------------------------------------------------------------------------------
 
-// Here we allow the shader access to a texture that has been loaded from the C++ side and stored in GPU memory.
-// Note that textures are often called maps (because texture mapping describes wrapping a texture round a mesh).
-// Get used to people using the word "texture" and "map" interchangably.
+// Texture access from buffer
 Texture2D    StoneDiffuseSpecularMap : register(t0); 
 Texture2D    WoodDiffuseSpecularMap : register(t1); 
-SamplerState TexSampler : register(s0); // A sampler is a filter for a texture like bilinear, trilinear or anisotropic
+
+// Texture sampler
+SamplerState TexSampler : register(s0);
 
 
 //--------------------------------------------------------------------------------------
 // Shader code
 //--------------------------------------------------------------------------------------
 
-// Pixel shader entry point - each shader has a "main" function
-// This shader just samples a diffuse texture map
+// Pixel shader main function
 float4 main(LightingPixelShaderInput input) : SV_Target
 {
 
-    // Lighting equations
+    // General ighting equations
     input.worldNormal = normalize(input.worldNormal); // Normal might have been scaled by model scaling or interpolation so renormalise
     float3 cameraDirection = normalize(gCameraPosition - input.worldPosition);
 
-    // Light 1
+    // Static light - 1 //
+
+    // Diffuse lighting
     float3 light1Vector = gLight1Position - input.worldPosition;
     float3 light1Dist = length(light1Vector);
     float3 light1Direction = light1Vector / light1Dist;
     float3 diffuseLight1 = gLight1Colour * max(dot(input.worldNormal, light1Direction), 0) / light1Dist; // Equations from lighting lecture
 
+    // Specular lighting
     float3 halfway = normalize(light1Direction + cameraDirection);
-    float3 specularLight1 =  diffuseLight1 * pow(max(dot(input.worldNormal, halfway), 0), gSpecularPower); // Multiplying by diffuseLight instead of light colour - my own personal preference
+    float3 specularLight1 =  diffuseLight1 * pow(max(dot(input.worldNormal, halfway), 0), gSpecularPower); // Multiplying by diffuseLight instead of light colour
 
 
-    // Light 2
+    // Rotating light - 2 //
+
+    // Diffuse lighting
     float3 light2Vector = gLight2Position - input.worldPosition;
     float3 light2Dist = length(light2Vector);
     float3 light2Direction = light2Vector / light2Dist;
     float3 diffuseLight2 = gLight2Strength * gLight2Colour * max(dot(input.worldNormal, light2Direction), 0) / light2Dist;
 
-    
+    // Specular lighting
     halfway = normalize(light2Direction + cameraDirection);
     float3 specularLight2 = gLight2Strength * diffuseLight2 * pow(max(dot(input.worldNormal, halfway), 0), gSpecularPower);
 
 
-    // Sample diffuse material and specular material colour for this pixel from a texture using a given sampler that you set up in the C++ code
+    // Textures from two diffuse/specular maps for linear interpolation
     float4 stoneColour = StoneDiffuseSpecularMap.Sample(TexSampler, input.uv);
     float3 diffuseStoneColour = stoneColour.rgb; // Diffuse material colour in texture RGB (base colour of model)
     float specularStoneColour = stoneColour.a;   // Specular material colour in texture A (shininess of the surface)
@@ -62,7 +64,8 @@ float4 main(LightingPixelShaderInput input) : SV_Target
     float3 diffuseWoodColour = WoodColour.rgb; // Diffuse material colour in texture RGB (base colour of model)
     float specularWoodColour = WoodColour.a;   // Specular material colour in texture A (shininess of the surface)
 
-    float t = 0.5f + 0.5f * sin(wiggle);
+    // Linear interpolation application using texture shift variable
+    float t = 0.5f + 0.5f * sin(textureShiftFactor);
     float3 diffuseColour = lerp(diffuseStoneColour, diffuseWoodColour, t);
     float specularColour = lerp(specularStoneColour, specularWoodColour, t);    
 
@@ -70,5 +73,5 @@ float4 main(LightingPixelShaderInput input) : SV_Target
     float3 finalColour = (gAmbientColour + diffuseLight1 + diffuseLight2) * diffuseColour + 
                          (specularLight1 + specularLight2) * specularColour;
 
-    return float4(finalColour, 1.0f); // Always use 1.0f for output alpha - no alpha blending in this lab
+    return float4(finalColour, 1.0f); // final colour
 }

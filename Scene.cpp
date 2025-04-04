@@ -28,12 +28,10 @@
 //--------------------------------------------------------------------------------------
 // Scene Data
 //--------------------------------------------------------------------------------------
-// Addition of Mesh, Model and Camera classes have greatly simplified this section
-// Geometry data has gone to Mesh class. Positions, rotations, matrices have gone to Model and Camera classes
 
-// Constants controlling speed of movement/rotation (measured in units per second because we're using frame time)
-const float ROTATION_SPEED = 2.0f;  // 2 radians per second for rotation
-const float MOVEMENT_SPEED = 50.0f; // 50 units per second for movement (what a unit of length is depends on 3D model - i.e. an artist decision usually)
+// Constants controlling speed of movement/rotation
+const float ROTATION_SPEED = 2.0f;
+const float MOVEMENT_SPEED = 50.0f;
 
 
 // Meshes, models and cameras, same meaning as TL-Engine. Meshes prepared in InitGeometry function, Models & camera in InitScene
@@ -54,7 +52,7 @@ Model* gLight1;
 Model* gLight2;
 Model* gPortal;
 
-// Two cameras now. The main camera, and the view through the portal
+// Two cameras - The main camera, and the view through the portal
 Camera* gCamera;
 Camera* gPortalCamera;
 
@@ -69,9 +67,9 @@ float    gLight2MinStrength = 0;
 float    gLight2MaxStrength = 7;
 float    gLight2PulseSpeed = 1.5f;
 
-float    wiggle = 0;
+float    textureShiftFactor = 0; // texture effect variable
 
-CVector3 gAmbientColour = { 0.2f, 0.2f, 0.3f }; // Background level of light (slightly bluish to match the far background, which is dark blue)
+CVector3 gAmbientColour = { 0.2f, 0.2f, 0.3f }; // Background level of light
 float    gSpecularPower = 256; // Specular power controls shininess - same for all models in this app
 
 ColourRGBA gBackgroundColor = { 0.2f, 0.2f, 0.3f , 1.0f };
@@ -83,45 +81,38 @@ const float gLightOrbitSpeed = 0.7f;
 
 
 
-// Lock FPS to monitor refresh rate, which will typically set it to 60fps. Press 'p' to toggle to full fps
+// Lock FPS to monitor refresh rate, which will typically set it to 60fps.
 bool lockFPS = true;
 
 
 //--------------------------------------------------------------------------------------
 //**** Portal Texture  ****//
 //--------------------------------------------------------------------------------------
-// This texture will have the scene renderered on it. Then the texture is applied to a model
-
 // Dimensions of portal texture - controls quality of rendered scene in portal
 int gPortalWidth  = 256;
 int gPortalHeight = 256;
 
 // The portal texture - each frame it is rendered to, then it is used as a texture for model
-ID3D11Texture2D*          gPortalTexture      = nullptr; // This object represents the memory used by the texture on the GPU
-ID3D11RenderTargetView*   gPortalRenderTarget = nullptr; // This object is used when we want to render to the texture above
-ID3D11ShaderResourceView* gPortalTextureSRV   = nullptr; // This object is used to give shaders access to the texture above (SRV = shader resource view)
+ID3D11Texture2D*          gPortalTexture      = nullptr; 
+ID3D11RenderTargetView*   gPortalRenderTarget = nullptr; 
+ID3D11ShaderResourceView* gPortalTextureSRV   = nullptr; 
 
-// Also need a depth/stencil buffer for the portal - it's just another kind of texture
-// NOTE: ***Can share this depth buffer between multiple portals of the same size***
-ID3D11Texture2D*        gPortalDepthStencil     = nullptr; // This object represents the memory used by the texture on the GPU
-ID3D11DepthStencilView* gPortalDepthStencilView = nullptr; // This object is used when we want to use the texture above as the depth buffer
+// Also need a depth/stencil buffer for the portal
+ID3D11Texture2D*        gPortalDepthStencil     = nullptr;
+ID3D11DepthStencilView* gPortalDepthStencilView = nullptr;
 
-//*********************//
 
 
 //--------------------------------------------------------------------------------------
 // Constant Buffers
 //--------------------------------------------------------------------------------------
 // Variables sent over to the GPU each frame
-// The structures are now in Common.h
-// IMPORTANT: Any new data you add in C++ code (CPU-side) is not automatically available to the GPU
-//            Anything the shaders need (per-frame or per-model) needs to be sent via a constant buffer
 
-PerFrameConstants gPerFrameConstants;      // The constants that need to be sent to the GPU each frame (see common.h for structure)
+PerFrameConstants gPerFrameConstants;      // The constants that need to be sent to the GPU each frame
 ID3D11Buffer*     gPerFrameConstantBuffer; // The GPU buffer that will recieve the constants above
 
-PerModelConstants gPerModelConstants;      // As above, but constant that change per-model (e.g. world matrix)
-ID3D11Buffer*     gPerModelConstantBuffer; // --"--
+PerModelConstants gPerModelConstants;      // As above, but constant that change per-model
+ID3D11Buffer*     gPerModelConstantBuffer; 
 
 
 
@@ -129,12 +120,12 @@ ID3D11Buffer*     gPerModelConstantBuffer; // --"--
 // Textures
 //--------------------------------------------------------------------------------------
 
-// DirectX objects controlling textures used in this lab
+// DirectX objects controlling textures used
 ID3D11Resource*           gTeapotDiffuseSpecularMap = nullptr;
 ID3D11ShaderResourceView* gTeapotDiffuseSpecularMapSRV = nullptr;
 
-ID3D11Resource*           gCubeStoneDiffuseSpecularMap    = nullptr; // This object represents the memory used by the texture on the GPU
-ID3D11ShaderResourceView* gCubeStoneDiffuseSpecularMapSRV = nullptr; // This object is used to give shaders access to the texture above (SRV = shader resource view)
+ID3D11Resource*           gCubeStoneDiffuseSpecularMap    = nullptr; 
+ID3D11ShaderResourceView* gCubeStoneDiffuseSpecularMapSRV = nullptr;
 ID3D11Resource*           gCubeWoodDiffuseSpecularMap = nullptr; 
 ID3D11ShaderResourceView* gCubeWoodDiffuseSpecularMapSRV = nullptr;
 
@@ -156,11 +147,9 @@ ID3D11ShaderResourceView* gLightDiffuseMapSRV = nullptr;
 //--------------------------------------------------------------------------------------
 
 // Prepare the geometry required for the scene
-// Returns true on success
 bool InitGeometry()
 {
-    // Load mesh geometry data, just like TL-Engine this doesn't create anything in the scene. Create a Model for that.
-    // IMPORTANT NOTE: Will only keep the first object from the mesh - multipart objects will have parts missing - see later lab for more robust loader
+    // Load mesh geometry data
     try 
     {
         gTeapotMesh = new Mesh("Teapot.x");
@@ -171,14 +160,14 @@ bool InitGeometry()
         gLightMesh  = new Mesh("Light.x");
         gPortalMesh = new Mesh("Portal.x");
     }
-    catch (std::runtime_error e)  // Constructors cannot return error messages so use exceptions to catch mesh errors (fairly standard approach this)
+    catch (std::runtime_error e)
     {
-        gLastError = e.what(); // This picks up the error message put in the exception (see Mesh.cpp)
+        gLastError = e.what();
         return false;
     }
 
 
-    // Load the shaders required for the geometry we will use (see Shader.cpp / .h)
+    // Load the shaders required for the geometry used
     if (!LoadShaders())
     {
         gLastError = "Error loading shaders";
@@ -187,8 +176,6 @@ bool InitGeometry()
 
 
     // Create GPU-side constant buffers to receive the gPerFrameConstants and gPerModelConstants structures above
-    // These allow us to pass data from CPU to shaders such as lighting information or matrices
-    // See the comments above where these variable are declared and also the UpdateScene function
     gPerFrameConstantBuffer = CreateConstantBuffer(sizeof(gPerFrameConstants));
     gPerModelConstantBuffer = CreateConstantBuffer(sizeof(gPerModelConstants));
     if (gPerFrameConstantBuffer == nullptr || gPerModelConstantBuffer == nullptr)
@@ -201,9 +188,6 @@ bool InitGeometry()
     //// Load / prepare textures on the GPU ////
 
     // Load textures and create DirectX objects for them
-    // The LoadTexture function requires you to pass a ID3D11Resource* (e.g. &gCubeDiffuseMap), which manages the GPU memory for the
-    // texture and also a ID3D11ShaderResourceView* (e.g. &gCubeDiffuseMapSRV), which allows us to use the texture in shaders
-    // The function will fill in these pointers with usable data. The variables used here are globals found near the top of the file.
     if (!LoadTexture("MetalDiffuseSpecular.dds", &gTeapotDiffuseSpecularMap, &gTeapotDiffuseSpecularMapSRV) ||
         !LoadTexture("StoneDiffuseSpecular.dds", &gCubeStoneDiffuseSpecularMap,   &gCubeStoneDiffuseSpecularMapSRV  ) ||
         !LoadTexture("WoodDiffuseSpecular.dds",  &gCubeWoodDiffuseSpecularMap,    &gCubeWoodDiffuseSpecularMapSRV) ||
@@ -221,18 +205,17 @@ bool InitGeometry()
 
     //**** Create Portal Texture ****//
 
-	// Using a helper function to load textures from files above. Here we create the portal texture manually
-	// as we are creating a special kind of texture (one that we can render to). Many settings to prepare:
+	// Using a helper function to load textures from files above
 	D3D11_TEXTURE2D_DESC portalDesc = {};
 	portalDesc.Width  = gPortalWidth;  // Size of the portal texture determines its quality
 	portalDesc.Height = gPortalHeight;
-	portalDesc.MipLevels = 1; // No mip-maps when rendering to textures (or we would have to render every level)
+	portalDesc.MipLevels = 1; // No mip-maps when rendering to textures
 	portalDesc.ArraySize = 1;
 	portalDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // RGBA texture (8-bits each)
 	portalDesc.SampleDesc.Count = 1;
 	portalDesc.SampleDesc.Quality = 0;
 	portalDesc.Usage = D3D11_USAGE_DEFAULT;
-	portalDesc.BindFlags = D3D10_BIND_RENDER_TARGET | D3D10_BIND_SHADER_RESOURCE; // IMPORTANT: Indicate we will use texture as render target, and pass it to shaders
+	portalDesc.BindFlags = D3D10_BIND_RENDER_TARGET | D3D10_BIND_SHADER_RESOURCE;
 	portalDesc.CPUAccessFlags = 0;
 	portalDesc.MiscFlags = 0;
 	if (FAILED( gD3DDevice->CreateTexture2D(&portalDesc, NULL, &gPortalTexture) ))
@@ -241,15 +224,13 @@ bool InitGeometry()
 		return false;
 	}
 
-	// We created the portal texture above, now we get a "view" of it as a render target, i.e. get a special pointer to the texture that
-	// we use when rendering to it (see RenderScene function below)
 	if (FAILED( gD3DDevice->CreateRenderTargetView(gPortalTexture, NULL, &gPortalRenderTarget) ))
 	{
 		gLastError = "Error creating portal render target view";
 		return false;
 	}
 
-	// We also need to send this texture (resource) to the shaders. To do that we must create a shader-resource "view"
+	// Create a shader-resource "view"
 	D3D11_SHADER_RESOURCE_VIEW_DESC srDesc = {};
 	srDesc.Format = portalDesc.Format;
 	srDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
@@ -264,14 +245,12 @@ bool InitGeometry()
 
 	//**** Create Portal Depth Buffer ****//
 
-	// We also need a depth buffer to go with our portal
-	//**** This depth buffer can be shared with any other portals of the same size
     portalDesc = {};
 	portalDesc.Width  = gPortalWidth;
 	portalDesc.Height = gPortalHeight;
 	portalDesc.MipLevels = 1;
 	portalDesc.ArraySize = 1;
-	portalDesc.Format = DXGI_FORMAT_D32_FLOAT; // Depth buffers contain a single float per pixel
+	portalDesc.Format = DXGI_FORMAT_D32_FLOAT;
 	portalDesc.SampleDesc.Count = 1;
 	portalDesc.SampleDesc.Quality = 0;
 	portalDesc.Usage = D3D11_USAGE_DEFAULT;
@@ -284,7 +263,7 @@ bool InitGeometry()
 		return false;
 	}
 
-	// Create the depth stencil view, i.e. indicate that the texture just created is to be used as a depth buffer
+	// Create the depth stencil view
 	D3D11_DEPTH_STENCIL_VIEW_DESC portalDescDSV = {};
 	portalDescDSV.Format = portalDesc.Format;
 	portalDescDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
@@ -301,7 +280,7 @@ bool InitGeometry()
     
 
 
-  	// Create all filtering modes, blending modes etc. used by the app (see State.cpp/.h)
+  	// Create all filtering modes, blending modes etc. used by the app
 	if (!CreateStates())
 	{
 		gLastError = "Error creating states";
@@ -313,7 +292,6 @@ bool InitGeometry()
 
 
 // Prepare the scene
-// Returns true on success
 bool InitScene()
 {
     //// Set up scene ////
@@ -351,7 +329,7 @@ bool InitScene()
 	gCamera->SetFarClip( 1000.0f );
 
 
-  	//**** Portal camera is the view shown in the portal object's texture ****//
+  	// Set up portal
 	gPortalCamera = new Camera();
 	gPortalCamera->SetPosition({ 45, 45, 85 });
 	gPortalCamera->SetRotation({ ToRadians(20.0f), ToRadians(215.0f), 0 });
@@ -392,7 +370,7 @@ void ReleaseResources()
 
     ReleaseShaders();
 
-    // See note in InitGeometry about why we're not using unique_ptr and having to manually delete
+    // Delete dynamically allocated objects not using unique_ptr
     delete gCamera;        gCamera       = nullptr;
     delete gPortalCamera;  gPortalCamera = nullptr;
 
@@ -422,8 +400,6 @@ void ReleaseResources()
 
 
 // Render everything in the scene from the given camera
-// This code is common between rendering the main scene and rendering the scene in the portal
-// See RenderScene function below
 void RenderSceneFromCamera(Camera* camera)
 {
     // Set camera matrices in the constant buffer and send over to GPU
@@ -432,38 +408,34 @@ void RenderSceneFromCamera(Camera* camera)
     gPerFrameConstants.viewProjectionMatrix = camera->ViewProjectionMatrix();
     UpdateConstantBuffer(gPerFrameConstantBuffer, gPerFrameConstants);
 
-    // Indicate that the constant buffer we just updated is for use in the vertex shader (VS) and pixel shader (PS)
-    gD3DContext->VSSetConstantBuffers(0, 1, &gPerFrameConstantBuffer); // First parameter must match constant buffer number in the shader 
+    // Indicate that the constant buffer is for use in the vertex shader (VS) and pixel shader (PS)
+    gD3DContext->VSSetConstantBuffers(0, 1, &gPerFrameConstantBuffer);
     gD3DContext->PSSetConstantBuffers(0, 1, &gPerFrameConstantBuffer);
 
 
-    //// Render lit models - ground first ////
+    //// Render lit models ////
 
     // Select which shaders to use next
     gD3DContext->VSSetShader(gPixelLightingVertexShader, nullptr, 0);
     gD3DContext->PSSetShader(gPixelLightingPixelShader,  nullptr, 0);
     
-    // States - no blending, normal depth buffer and culling
+    // States for non-unique objects
     gD3DContext->OMSetBlendState(gNoBlendingState, nullptr, 0xffffff);
     gD3DContext->OMSetDepthStencilState(gUseDepthBufferState, 0);
     gD3DContext->RSSetState(gCullBackState);
 
     // Select the approriate textures and sampler to use in the pixel shader
-    gD3DContext->PSSetShaderResources(0, 1, &gGroundDiffuseSpecularMapSRV); // First parameter must match texture slot number in the shader
+    gD3DContext->PSSetShaderResources(0, 1, &gGroundDiffuseSpecularMapSRV);
     gD3DContext->PSSetSamplers(0, 1, &gAnisotropic4xSampler);
 
-    // Render model - it will update the model's world matrix and send it to the GPU in a constant buffer, then it will call
-    // the Mesh render function, which will set up vertex & index buffer before finally calling Draw on the GPU
+    // Render model
     gGround->Render();
-
-
-    //// Render other lit models next ////
-    // No change to shaders and states - only change textures for each one (texture sampler also stays the same)
 
     // Container render
     gD3DContext->PSSetShaderResources(0, 1, &gCrateDiffuseSpecularMapSRV);
     gCrate->Render();
 
+    // Teapot render
     gD3DContext->PSSetShaderResources(0, 1, &gTeapotDiffuseSpecularMapSRV);
     gTeapot->Render();
 
@@ -471,13 +443,13 @@ void RenderSceneFromCamera(Camera* camera)
     gD3DContext->PSSetShaderResources(0, 1, &gPortalTextureSRV);
     gPortal->Render();
 
-    // Sphere render
+    // Sphere render - change in shaders
     gD3DContext->VSSetShader(gSphereModelVertexShader, nullptr, 0);
     gD3DContext->PSSetShader(gSphereModelPixelShader, nullptr, 0);
     gD3DContext->PSSetShaderResources(0, 1, &gSphereDiffuseSpecularMapSRV);
     gSphere->Render();
     
-    // Cube render
+    // Cube render - change in shaders, and two textures sent to buffers
     gD3DContext->VSSetShader(gCubeModelVertexShader, nullptr, 0);
     gD3DContext->PSSetShader(gCubeModelPixelShader, nullptr, 0);
     gD3DContext->PSSetShaderResources(0, 1, &gCubeStoneDiffuseSpecularMapSRV); // Send two textures to the buffers for linear interpolation
@@ -491,19 +463,18 @@ void RenderSceneFromCamera(Camera* camera)
     gD3DContext->PSSetShader(gLightModelPixelShader,  nullptr, 0);
 
     // Select the texture and sampler to use in the pixel shader
-    gD3DContext->PSSetShaderResources(0, 1, &gLightDiffuseMapSRV); // First parameter must match texture slot number in the shaer
+    gD3DContext->PSSetShaderResources(0, 1, &gLightDiffuseMapSRV); 
     gD3DContext->PSSetSamplers(0, 1, &gAnisotropic4xSampler);
 
-    // States - additive blending, read-only depth buffer and no culling (standard set-up for blending)
+    // States - additive blending, read-only depth buffer and no culling 
     gD3DContext->OMSetBlendState(gAdditiveBlendingState, nullptr, 0xffffff);
     gD3DContext->OMSetDepthStencilState(gDepthReadOnlyState, 0);
     gD3DContext->RSSetState(gCullNoneState);
 
     // Render model, sets world matrix, vertex and index buffer and calls Draw on the GPU
-    gPerModelConstants.objectColour = gLight1Colour; // Set any per-model constants apart from the world matrix just before calling render (light colour here)
+    gPerModelConstants.objectColour = gLight1Colour; // Set any per-model constants apart from the world matrix just before calling render
     gLight1->Render();
 
-    // The shaders, texture and states are the same, so no need to set them again to draw the second light
     gPerModelConstants.objectColour = gLight2Colour;
     gLight2->Render();
 }
@@ -511,14 +482,12 @@ void RenderSceneFromCamera(Camera* camera)
 
 
 
-// Rendering the scene now renders everything twice. First it renders the scene for the portal into a texture.
-// Then it renders the main scene using the portal texture on a model.
+// Main render function
 void RenderScene()
 {
     //// Common settings for both main scene and portal scene ////
 
     // Set up the light information in the constant buffer - this is the same for portal and main render
-    // Don't send to the GPU yet, the function RenderSceneFromCamera will do that
     gPerFrameConstants.light1Colour   = gLight1Colour * gLight1Strength;
     gPerFrameConstants.light1Position = gLight1->Position();
     gPerFrameConstants.light2Colour   = gLight2Colour * gLight2Strength;
@@ -528,8 +497,8 @@ void RenderScene()
     gPerFrameConstants.specularPower  = gSpecularPower;
     gPerFrameConstants.cameraPosition = gCamera->Position();
 
-
-    gPerModelConstants.wiggle = wiggle;
+    // Send time-based variable to constant buffer for use in pixel shader
+    gPerModelConstants.textureShiftFactor = textureShiftFactor;
 
     //-------------------------------------------------------------------------
 
@@ -537,7 +506,6 @@ void RenderScene()
     //// Portal scene rendering ////
 
     // Set the portal texture and portal depth buffer as the targets for rendering
-    // The portal texture will later be used on models in the main scene
     gD3DContext->OMSetRenderTargets(1, &gPortalRenderTarget, gPortalDepthStencilView);
 
     // Clear the portal texture to a fixed colour and the portal depth buffer to the far distance
@@ -563,8 +531,7 @@ void RenderScene()
 
     //// Main scene rendering ////
 
-    // Now set the back buffer as the target for rendering and select the main depth buffer.
-    // When finished the back buffer is sent to the "front buffer" - which is the monitor.
+    // Set the back buffer as the target for rendering and select the main depth buffer.
     gD3DContext->OMSetRenderTargets(1, &gBackBufferRenderTarget, gDepthStencil);
 
     // Clear the back buffer to a fixed colour and the depth buffer to the far distance
@@ -605,13 +572,13 @@ void UpdateScene(float frameTime)
 	// Control sphere (will update its world matrix)
 	gSphere->Control(frameTime, Key_I, Key_K, Key_J, Key_L, Key_U, Key_O, Key_Period, Key_Comma );
 
-    // Orbit the light - a bit of a cheat with the static variable [ask the tutor if you want to know what this is]
+    // Orbit the light
 	static float rotate = 0.0f;
 	gLight1->SetPosition( gCube->Position() + CVector3{ cos(rotate) * gLightOrbit, 0.0f, sin(rotate) * gLightOrbit } );
 	rotate -= gLightOrbitSpeed * frameTime;
 
 
-	// Control camera (will update its view matrix)
+	// Control camera 
 	gCamera->Control(frameTime, Key_Up, Key_Down, Key_Left, Key_Right, Key_W, Key_S, Key_A, Key_D );
 
 
@@ -623,19 +590,19 @@ void UpdateScene(float frameTime)
     static float fpsFrameTime = 0;
     static float effectTime = 0;
     static int frameCount = 0;
-
     fpsFrameTime += frameTime;
     ++frameCount;
 
-    //wiggle = 6 * frameTime;
-    effectTime += frameTime; // separate frame time variable for effects - does not reset
+    // local texture shift factor - separate frame time variable for effects, does not reset
+    effectTime += frameTime; 
 
-    wiggle = 2 * effectTime;
+    // global factor passed into buffer to be used in pixel shaders
+    textureShiftFactor = 2 * effectTime;
 
-    // Rotating light color values - assigned different values so some colors rotate quicker, because why not
-    float r = 0.5f + 0.5f * sinf(effectTime * 0.7f);
-    float g = 0.5f + 0.5f * sinf(effectTime * 1.1f);
-    float b = 0.5f + 0.5f * sinf(effectTime * 1.5f);
+    // Rotating light color values
+    float r = 0.5f + 0.5f * sinf(effectTime * 0.8f);
+    float g = 0.5f + 0.5f * sinf(effectTime * 0.8f);
+    float b = 0.5f + 0.5f * sinf(effectTime * 0.8f);
 
     gLight1Colour = { r, g, b }; // assign values to vector before sending to GPU
 
@@ -645,7 +612,7 @@ void UpdateScene(float frameTime)
 
     if (fpsFrameTime > fpsUpdateTime)
     {
-        // Displays FPS rounded to nearest int, and frame time (more useful for developers) in milliseconds to 2 decimal places
+        // Displays FPS rounded to nearest int, and frame time in milliseconds to 2 decimal places
         float avgFrameTime = fpsFrameTime / frameCount;
         std::ostringstream frameTimeMs;
         frameTimeMs.precision(2);

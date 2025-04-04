@@ -4,9 +4,8 @@
 #ifndef _COMMON_H_INCLUDED_
 #define _COMMON_H_INCLUDED_
 
-#define NOMINMAX // windows.h is very old and for compatibilty reasons includes a very badly written
-                 // definition of min and max. It clashes with the STL std::min and std::max.
-                 // Use this line before windows.h to remove the problematic legacy definitions
+#define NOMINMAX 
+
 #include <windows.h>
 #include <d3d11.h>
 #include <string>
@@ -18,10 +17,7 @@
 //--------------------------------------------------------------------------------------
 // Global Variables
 //--------------------------------------------------------------------------------------
-// Make global Variables from various files available to other files. "extern" means
-// this variable is defined in another file somewhere. We should use classes and avoid
-// use of globals, but done this way to keep code simpler so the DirectX content is
-// clearer. However, try to architect your own code in a better way.
+// Make global Variables from various files available to other files.
 
 // Windows variables
 extern HWND gHWnd;
@@ -35,16 +31,15 @@ extern int gViewportHeight;
 extern ID3D11Device*           gD3DDevice;
 extern ID3D11DeviceContext*    gD3DContext;
 extern IDXGISwapChain*         gSwapChain;
-extern ID3D11RenderTargetView* gBackBufferRenderTarget;  // Back buffer is where we render to
-extern ID3D11DepthStencilView* gDepthStencil;            // The depth buffer contains a depth for each back buffer pixel
+extern ID3D11RenderTargetView* gBackBufferRenderTarget;  
+extern ID3D11DepthStencilView* gDepthStencil;            
 
 // Input constsnts
 extern const float ROTATION_SPEED;
 extern const float MOVEMENT_SPEED;
 
 
-// A global error message to help track down fatal errors - set it to a useful message
-// when a serious error occurs
+// A global error message to help track down fatal errors
 extern std::string gLastError;
 
 
@@ -54,9 +49,8 @@ extern std::string gLastError;
 //--------------------------------------------------------------------------------------
 // Variables sent over to the GPU each frame
 
-// Data that remains constant for an entire frame, updated from C++ to the GPU shaders *once per frame*
-// We hold them together in a structure and send the whole thing to a "constant buffer" on the GPU each frame when
-// we have finished updating the scene. There is a structure in the shader code that exactly matches this one
+// Per Frame Buffers
+// Must match the hlsli file
 struct PerFrameConstants
 {
     // These are the matrices used to position the camera
@@ -64,10 +58,8 @@ struct PerFrameConstants
     CMatrix4x4 projectionMatrix;
     CMatrix4x4 viewProjectionMatrix; // The above two matrices multiplied together to combine their effects
 
-    CVector3   light1Position; // 3 floats: x, y z
-    float      padding1;      // IMPORTANT technical point: shaders work with float4 values. If constant buffer variables don't align
-                              // to the size of a float4 then HLSL (GPU) will insert padding, which can cause problems matching 
-                              // structure between C++ and GPU. So add these unused padding variables to both HLSL and C++ structures.
+    CVector3   light1Position; 
+    float      padding1;      
     CVector3   light1Colour;
     float      padding2;
 
@@ -78,7 +70,7 @@ struct PerFrameConstants
     float      light2Strength;
 
     CVector3   ambientColour;
-    float      specularPower;  // In this case we actually have a useful float variable that we can use to pad to a float4
+    float      specularPower; 
 
     CVector3   cameraPosition;
     float      padding5;
@@ -89,14 +81,14 @@ extern ID3D11Buffer*     gPerFrameConstantBuffer; // This variable controls the 
 
 
 
-// This is the matrix that positions the next thing to be rendered in the scene. Unlike the structure above this data can be
-// updated and sent to the GPU several times every frame (once per model). However, apart from that it works in the same way.
+// Per Model Buffers
+// Must match the hlsli file
 struct PerModelConstants
 {
     CMatrix4x4 worldMatrix;
     CVector3   objectColour; // Allows each light model to be tinted to match the light colour they cast
     float      padding6;
-    float      wiggle;
+    float      textureShiftFactor;
 };
 extern PerModelConstants gPerModelConstants;      // This variable holds the CPU-side constant buffer described above
 extern ID3D11Buffer*     gPerModelConstantBuffer; // This variable controls the GPU-side constant buffer related to the above structure
